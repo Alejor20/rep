@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Usuarios</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="registerContainer">
+        <h1>Registro de Usuario</h1>
+        <form id="registerForm">
+        <input type="text" id="name" placeholder="Nombre" required />
+        <input type="text" id="apellido" placeholder="Apellido" required />
+        <input type="email" id="email" placeholder="Correo electronico" required />
+        <input type="number" id="telefono" placeholder="Telefono" required />
+        <input type="text" id="registerUsername" placeholder="Usuario" required />
+        <input type="password" id="registerPassword" placeholder="Contraseña" required />
+        <select name="role" id="rol">
+            <option>Seleccione Un Rol</option>
+            <option value="admin">Administrador</option>
+            <option value="user">Usuario</option>
+        </select><br>  
+        <button type="submit">Registrar</button>
+    </form>
+    <p id="registerErrorMessage" style="color: red;"></p>
+    <p id="registerSuccessMessage" style="color: green;"></p>
+    </div>
+   
+
+<script>
+    const registerForm = document.getElementById('registerForm');
+    const registerErrorMessage = document.getElementById('registerErrorMessage');
+    const registerSuccessMessage = document.getElementById('registerSuccessMessage');
+        // Manejar el registro de usuario
+        registerForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            const apellido = document.getElementById('apellido').value;
+            const email = document.getElementById('email').value;
+            const telefono = document.getElementById('telefono').value;
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+            const role = document.getElementById('rol').value;
+
+            fetch('/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, apellido, email, telefono, username, password, role })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    registerSuccessMessage.textContent = 'Usuario registrado exitosamente';
+                    registerErrorMessage.textContent = '';
+                } else {
+                    registerErrorMessage.textContent = data.message || 'Error al registrar usuario';
+                    registerSuccessMessage.textContent = '';
+                }
+            })
+            .catch(() => {
+                registerErrorMessage.textContent = 'Error al procesar la solicitud';
+                registerSuccessMessage.textContent = '';
+            });
+        });
+
+</script>
+
+</body>
+</html>

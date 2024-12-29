@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Ubicación</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+</head>
+<body>
+    <h1>Mapa y Registro de Ubicación</h1>
+
+    <div id="map" style="width: 400px; height: 400px;"></div>
+    
+    <div id="adminControls" style="display: none;">
+        <button id="downloadCsv">Descargar Reporte CSV</button>
+        <button id="roca" href="..pages/register.html">Registrar Usuarios</button>
+        
+    </div>
+    
+
+    <button id="registerLocation">Registrar Ubicación</button>
+    <p id="statusMessage" style="color: green;"></p>
+    <p id="errorMessage" style="color: red;"></p>
+
+    <script>
+        let map;
+        let marker;
+        let token = localStorage.getItem('token'); // Asume que el token se almacena en el almacenamiento local
+
+        // Función para inicializar el mapa
+        function initializeMap(latitude, longitude) {
+            map = L.map('map').setView([latitude, longitude], 13);
+
+            // Añadir capa de mapa
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            // Añadir marcador inicial
+            marker = L.marker([latitude, longitude]).addTo(map);
+        }
+
+        // Obtener la ubicación actual del usuario
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    initializeMap(latitude, longitude);
+                },
+                () => {
+                    alert('No se pudo obtener tu ubicación.');
+                }
+            );
+        } else {
+            alert('Geolocalización no soportada por tu navegador.');
+        }
+
+        // Botón para registrar ubicación
+        document.getElementById('registerLocation').addEventListener('click', () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        
+                        
+                        fetch('/mark-location', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ latitude, longitude })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            const currentTime = new Date(); // Obtiene la hora actual
+                            const formattedTime = currentTime.toLocaleTimeString('es-ES', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                            }); // Formatea la hora (hh:mm:ss)
+
+                            if (data.message === 'Ubicación marcada exitosamente') {
+                                Swal.fire({
+                                    title: 'Ubicación registrada',
+                                    html: `<p>Tu ubicación ha sido registrada exitosamente.</p>
+                                        <p><strong>Hora:</strong> ${formattedTime}</p>`,
+                                    icon: 'success',
+                                    confirmButtonText: 'Continuar'
+                                }).then(() => {
+                                    marker.setLatLng([latitude, longitude]);
+                                });
+                            } else {
+                                Swal.fire({
+                                    title: 'Error',
+                                    text: data.message || 'Error al registrar ubicación',
+                                    icon: 'error',
+                                    confirmButtonText: 'Intentar nuevamente'
+                                });
+                            }
+                        })
+                        .catch(() => {
+                            Swal.fire({
+                                title: 'Error',
+                                text: 'No se pudo procesar la solicitud',
+                                icon: 'error',
+                                confirmButtonText: 'Intentar nuevamente'
+                            });
+                        });
+                    },
+                    () => {
+                        alert('No se pudo obtener tu ubicación.');
+                    }
+                );
+            } else {
+                alert('Geolocalización no soportada por tu navegador.');
+            }
+        });
+
+        // Mostrar controles de administrador si el usuario es admin
+        fetch('/verify-role', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.role === 'admin') {
+                document.getElementById('adminControls').style.display = 'block';
+            }
+        })
+        .catch(() => {
+            console.error('No se pudo verificar el rol del usuario.');
+        });
+
+        //boton registrar usuario
+        document.getElementById('roca').addEventListener('click', () => {
+            window.location.href = 'register.html'; 
+        });
+
+
+        // Botón para descargar el CSV
+        document.getElementById('downloadCsv').addEventListener('click', () => {
+            fetch('/download-report', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Error al descargar el archivo');
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'report.csv';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(() => {
+                alert('Error al descargar el archivo.');
+            });
+        });
+    </script>
+</body>
+</html>
